@@ -11,3 +11,5 @@ I apologize to any ruby experts, I only used ruby for the first time a month and
 Movement - numpad or arrow keys
 
 numpad0 and numpad5 (and 'q'/'w') toggle between different types of tile views - standard (each "grass" tile looks the same) and randomized (randomly chooses between slightly different tiles)
+
+*Tiles are from Crossfire RPG
