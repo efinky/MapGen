@@ -189,136 +189,98 @@ class MapGen
 		
 		@map = Array.new(@rows) { Array.new(@cols) { [@tiles["nil"],@tiles["nil"]]} }
 		@mapCompare = Array.new(@rows) { Array.new(@cols) { [@tiles["nil"],@tiles["nil"]]} }
-		#order of generation grass, hills, forest, lake, mountain
-		puts "generating ocean..."
-		gen_section(0,300,180,"lake")
 		
+		#order of generation grass, hills, forest, lake, mountain
+		
+		types = ["grass", "hills", "forest", "dark_forest", "lake", "ridge", "mountain"]
+		#estimates total number to be generated
+		total_number = ((@rows*@cols)/10000).to_i
+		numbers = [(total_number/2 + rand(-5..5)).to_i, 
+					(total_number/4 + rand(-5..5)).to_i,
+					(total_number/4 + rand(-2..2)).to_i,
+					(total_number/4 + rand(-2..2)).to_i,
+					(total_number/5 + rand(-2..2)).to_i,
+					(total_number/10 + rand(-2..2)).to_i,
+					(total_number/5 + rand(-2..2)).to_i]
+		#calculates total
+		total = 0
+		#start at 2 because we don't really care about the number of grass and hills generated
+		(2..numbers.length-1).each do |i|
+			total+=numbers[i]
+		end
+		points = []
+		row = Math.sqrt(total).ceil
+		puts row, total
+		dist = @rows/row
+		(0..row-1).each do |r|
+			(0..row-1).each do |c|
+				points.push [rand(r*dist..(r+1)*dist), rand(c*dist..(c+1)*dist)]
+			end
+		end
+		points.shuffle!
+		index = 0
+		points_index = 0
+		types.each do |type|
+			puts "generating " + type + "..."
+			numbers[index].times do	
+				if type == "mountain"
+					gen_mountain(*points[points_index], rand(10..dist))
+					points_index+=1
+				elsif type == "ridge"
+					gen_ridge(*points[points_index], rand(dist..dist*3))
+					points_index+=1
+				elsif type == "grass" or type == "hills"
+					gen_section(rand(0..(@rows-1)), rand(0..@cols-1), rand(10..dist), type)
+				else
+					gen_section(*points[points_index], rand(10..dist), type)
+					points_index+=1
+				end
+			end
+			index+=1
+		end
 		
 		puts "filling in extra map..."
-		#fill_in_map
+		fill_in_map
 		puts "Done!"
 	end
 	
 	def gen_section(x, y, size, type)
-		radius = size/2
-		num_sides = 5
-		variance = (2*PI)/num_sides
-		angles = []
-		(0..num_sides).each do |i|
-			angles.push ((variance * i) + rand(-0.1..0.1))
-		end
+		size = size/2
 		points = []
-		angles.each do |angle|
-			points.push [(x+Math.sin(angle)*radius).to_i, (y+Math.cos(angle)*radius).to_i]
-		end
-		# points = []
-		# points.push [x+radius+rand(-5..5), y+radius+rand(-5..5)]
-		# points.push [x-radius+rand(-5..5), y+radius+rand(-5..5)]
-		# points.push [x-radius+rand(-5..5), y-radius+rand(-5..5)]
-		# points.push [x+radius+rand(-5..5), y-radius+rand(-5..5)]
+		points.push [x+size+rand(-5..5), y+size+rand(-5..5)]
+		points.push [x-size+rand(-5..5), y+size+rand(-5..5)]
+		points.push [x-size+rand(-5..5), y-size+rand(-5..5)]
+		points.push [x+size+rand(-5..5), y-size+rand(-5..5)]
 		
 		if type == "lake"
 			tile_name = "lake_shallow"
 			tile_name1 = "lake"
-		elsif type == "dark_forest"
-			tile_name = "forest"
-			tile_name1 = "dark_forest"
+			
 		elsif type == "forest"
 			tile_name = "fill"
 			tile_name1 = "forest"
+		elsif type == "dark_forest"
+			tile_name = "forest"
+			tile_name1 = "dark_forest"
+			
 		elsif type == "hills"
 			tile_name = "fill"
 			tile_name1 = "hills"
+			
 		elsif type == "grass"
 			tile_name = "grass"
 			tile_name1 = "grass"
 		end
-		# #right to left
-		# gen_edge(*points[0], *points[1], x, y, tile_name)
-		# #bottom to top
-		# gen_edge(*points[1], *points[2], x, y, tile_name)
-		# #left to right
-		# gen_edge(*points[2], *points[3], x, y, tile_name)
-		# #top to bottom
-		# gen_edge(*points[3], *points[0], x, y, tile_name)
-		# #all but the last
-		(0..num_sides-2).each do |i|
-			gen_edge(*points[i], *points[i+1], x, y, tile_name)
-		end
-		#last one loops back to first
-		gen_edge(*points[num_sides-1], *points[0], x, y, tile_name)
+		#right to left
+		gen_edge(*points[0], *points[1], x, y, tile_name)
+		#bottom to top
+		gen_edge(*points[1], *points[2], x, y, tile_name)
+		#left to right
+		gen_edge(*points[2], *points[3], x, y, tile_name)
+		#top to bottom
+		gen_edge(*points[3], *points[0], x, y, tile_name)
 		
-		#keeping the stack level from getting too deep, cutting the fill 
-		#into smaller sections
-		
-		if size > 50
-			t_x = x
-			t_y = y
-			while over_ride_tile?(tile_name1, @map[check_x(t_x)][check_y(t_y)][1]) 
-				@map[check_x(t_x)][check_y(t_y)][1] = rand_tile(tile_name1)
-				t_x+=1
-			end
-			t_x = x-1
-			t_y = y
-			while over_ride_tile?(tile_name1, @map[check_x(t_x)][check_y(t_y)][1]) 
-				@map[check_x(t_x)][check_y(t_y)][1] = rand_tile(tile_name1)
-				t_x-=1
-			end
-			t_x = x
-			t_y = y+1
-			while over_ride_tile?(tile_name1, @map[check_x(t_x)][check_y(t_y)][1]) 
-				@map[check_x(t_x)][check_y(t_y)][1] = rand_tile(tile_name1)
-				t_y+=1
-			end
-			t_x = x
-			t_y = y-1
-			while over_ride_tile?(tile_name1, @map[check_x(t_x)][check_y(t_y)][1]) 
-				@map[check_x(t_x)][check_y(t_y)][1] = rand_tile(tile_name1)
-				t_y-=1
-			end
-			#find centers of new sections to start filling from
-			t_x = x+1
-			t_y = y+1
-			distance = 0
-			while over_ride_tile?(tile_name1, @map[check_x(t_x)][check_y(t_y)][1]) 
-				distance+=1
-				t_x+=1
-				t_y+=1
-			end
-			
-			t_x = x-1
-			t_y = y-1
-			distance = 0
-			while over_ride_tile?(tile_name1, @map[check_x(t_x)][check_y(t_y)][1]) 
-				distance+=1
-				t_x-=1
-				t_y-=1
-			end
-			t_x = x+1
-			t_y = y-1
-			distance = 0
-			while over_ride_tile?(tile_name1, @map[check_x(t_x)][check_y(t_y)][1]) 
-				distance+=1
-				t_x+=1
-				t_y-=1
-			end
-			t_x = x-1
-			t_y = y+1
-			distance = 0
-			while over_ride_tile?(tile_name1, @map[check_x(t_x)][check_y(t_y)][1]) 
-				distance+=1
-				t_x-=1
-				t_y+=1
-			end
-			#fill in the four newly created sections
-			fill_in_center(x+1, y+1, x, y, radius, tile_name1)
-			fill_in_center(x-1, y-1, x, y, radius, tile_name1)
-			fill_in_center(x+1, y-1, x, y, radius, tile_name1)
-			fill_in_center(x-1, y+1, x, y, radius, tile_name1)
-		else
-			fill_in_center(x, y, x, y, radius, tile_name1)
-		end
-		
+		fill_in_center(x, y, x, y, size, tile_name1)
 		
 		#if we used fill to disperse, change all fill to nil
 		if type == "forest" or type == "hills"
@@ -334,25 +296,35 @@ class MapGen
 	
 	#x and y represent the relative center of the circle
 	def fill_in_center(x, y, center_x, center_y, size, tile_name)
-		distance = find_distance(x,y,center_x, center_y)
-		if distance<(size*1.5)
-			if tile_name == "lake"
-				if over_ride_tile?(tile_name, @map[check_x(x)][check_y(y)][1])
-					@map[check_x(x)][check_y(y)][1] = rand_tile(tile_name)
-				else
-					return
-				end
+		if x >= @rows
+			x = 0
+		elsif x < 0
+			x = @rows -1
+		end
+		if y >= @cols
+			y = 0
+		elsif y < 0
+			y = @cols -1
+		end
+		
+		dx = (x-center_x).abs
+		dy = (y-center_y).abs
+		
+		dist = dx >= dy ? dx : dy
+		if tile_name == "lake"
+			if over_ride_tile?(tile_name, @map[x][y][1])#.name == "nil"
+				@map[x][y][1] = rand_tile(tile_name)
 			else
-				rand_gen = [(rand*((size*2)-distance)+2), rand*distance, rand*(distance)]
-				key = @tile_gen[tile_name][index_of_max(rand_gen)]
-				if over_ride_tile?(tile_name, @map[check_x(x)][check_y(y)][1])
-					@map[check_x(x)][check_y(y)][1] = rand_tile(key)
-				else
-					return
-				end
+				return
 			end
 		else
-			return
+			rand_gen = [(rand*((size*2)-dist)+2), rand*dist, rand*(dist)]
+			key = @tile_gen[tile_name][index_of_max(rand_gen)]
+			if over_ride_tile?(tile_name, @map[x][y][1])#.name == "nil"
+				@map[x][y][1] = rand_tile(key)
+			else
+				return
+			end
 		end
 		
 		fill_in_center(x+1,y, center_x, center_y, size, tile_name)
@@ -367,122 +339,134 @@ class MapGen
 	#v is variant the axis that will wander
 	def gen_edge(x1, y1, x2, y2, center_x, center_y, tile_name)
 		
-		x = x1
-		y = y1
-		initial_angle = find_center_angle(x, y, x2, y2)
-		angle = initial_angle
-		x, y = map_section_edge(x,y,angle,center_x, center_y, tile_name)
-		distance = find_distance(x,y,x2,y2, initial_angle)
-		width = find_width(x,y,x1,y1,x2,y2)
-		while distance > 0
-			#puts "distance = " + distance.to_s
-			if distance >= 10
-				angle = find_angle_section(angle, initial_angle,  1)
-			elsif distance >= 5
-				angle = find_angle_section(angle, initial_angle, 1)
-			else
-				angle = find_center_angle(x, y, x2, y2)
-			end
-			x, y = map_section_edge(x,y,angle,center_x, center_y, tile_name)
-			if width >= distance or find_distance(x, y, center_x, center_y) < 2
-				#increment by an extra one towards the end points
-				new_angle = find_center_angle(x, y, x2, y2)
-				angle = find_angle_section(angle, initial_angle, 2, new_angle, true)
-				x, y = map_section_edge(x,y,angle,center_x, center_y, tile_name)	
-			end
-			distance = find_distance(x,y,x2,y2,initial_angle)
-			width = find_width(x,y,x1,y1,x2,y2)
+		#switch vertical horizontal
+		if (x1-x2).abs >= (y1-y2).abs
+			d1 = x1.to_i
+			v1 = y1.to_i
+			d2 = x2.to_i
+			v2 = y2.to_i
+			switch = true
+			center = center_y
 			
+		else
+			v1 = x1.to_i
+			d1 = y1.to_i
+			v2 = x2.to_i
+			d2 = y2.to_i
+			switch = false
+			center = center_x
+		end		
+		down = true
+		#flip up and down
+		if d1-d2 > 0
+			down = false
 		end
+		v = v1
+		d = d1
+		map_section_edge(v,d,switch,center, tile_name)	
 		
-		width = find_distance(x, y, x2, y2)
-		angle = find_center_angle(x, y, x2, y2)
-		while width > 0
-			x, y = map_section_edge(x,y,angle,center_x, center_y, tile_name)
-			width = find_distance(x, y, x2, y2)
-		end
-		
-		x, y = map_section_edge(x2,y2,angle,center_x, center_y, tile_name)
-	end
-	
-	def map_section_edge(x, y, angle, center_x, center_y, tile_name)
-		if over_ride_tile?(tile_name, @map[check_x(x)][check_y(y)][1])
-			@map[check_x(x)][check_y(y)][1] = rand_tile(tile_name)
-		end
-		if tile_name != "fill"
-			temp_angle = find_center_angle(x,y,center_x, center_y)
-			if temp_angle%2 == 0
-				temp_angle += (rand(0..1) == 0 ? -1 : 1)
-			end
-			t_x, t_y = update_x_y(x,y,temp_angle)
-			if over_ride_tile?(tile_name, @map[check_x(t_x)][check_y(t_y)][1])
-				@map[check_x(t_x)][check_y(t_y)][1] = rand_tile(tile_name)
-			end
-		end
-		x,y = update_x_y(x,y,angle)
-		return x, y
-	end
-	#x2,y2 = coordinates of center
-	def find_center_angle(x1, y1, x2, y2)
-		x = x1
-		y = y1 - Math.sqrt((x2 - x1).abs * (x2 - x1).abs + (y2 - y1).abs * (y2 - y1).abs)
-		angle = (2 * Math.atan2(y2 - y, x2 - x)) * 180 / PI
-		angle = ((angle+22.5)/45 + 1).to_i
-		if angle > 8
-			angle = 1
-		elsif angle < 1
-			angle = 8
-		end
-		return angle
-	end
-	
-	def find_angle_section(angle, center, variance = 2, new_center = 0, increment = false)
-		
-		#start to come towards point
-		if increment == false
-			#converts center to array point (from 0..7 instead of 1..8)
-			center -= 1
-			angles_list = [(center - 2)%8+1, (center - 1)%8+1, center%8+1, (center + 1)%8+1, (center + 2)%8+1]
+		while d<d2 or d2 < d
+			dd = (d-d2).abs
+			length = dd*2
+			#Angle_Heading
+			a_h = rand((v2-dd)..(v2+dd))
+			#Starting Point
+			s_p = v2-dd
 			
-			index = angles_list.index(angle)
-			
-			#keep accidents from crashing the program
-			if index == nil
-				index = 2
-			end
-			#change by one degree either way, or stay same direction
-			turn = rand(-1..1)
-			index += turn
-			if variance == 2
-				if index < 0
-					index = 1
-				elsif index > 4
-					index = 3
+			if length >= 5
+				interval = length/5
+				case a_h
+				
+				when (s_p..s_p+interval)
+					v-=1		
+				when (s_p+interval..s_p+(interval*2))
+					v-=1
+					d+=increment(down)
+				when (s_p+(interval*2)..s_p+(interval*3))
+					d+=increment(down)
+				when (s_p+(interval*3)..s_p+(interval*4))
+					v+=1
+					d+=increment(down)
+				when (s_p+(interval*4)..s_p+(interval*5))
+					v+=1
+				end
+			elsif length >= 3
+				interval = length/3
+				case a_h
+				
+				when (s_p..s_p+interval)
+					v-=1
+					d+=increment(down)
+				when (s_p+interval..s_p+(interval*2))
+					d+=increment(down)
+				when (s_p+(interval*2)..s_p+(interval*3))
+					v+=1
+					d+=increment(down)
 				end
 			else
-				if index < 1
-					index = 1
-				elsif index > 3
-					index = 3
-				end		
-			end
-			return_angle = angles_list[index]
-		else			
-			if angle > new_center
-				angle -= 1
-			elsif angle < new_center
-				angle += 1
-			end
-			if angle > 8
-				angle = 1
-			elsif angle < 1
-				angle = 8
+				d=d2
 			end
 			
-			return_angle = angle
+			dv = (v-v2).abs
+			if dv>=dd or v==center-1 or v==center+1
+				map_section_edge(v,d,switch,center, tile_name)
+				if v<v2
+					v+=1
+				else
+					v-=1
+				end
+				map_section_edge(v,d,switch,center, tile_name)
+			end
+			
+			map_section_edge(v,d,switch,center, tile_name)		
 			
 		end
-		return return_angle
+		map_section_edge(v2,d2,switch,center, tile_name)
+		while v != v2
+			if v<v2
+				v+=1
+			else
+				v-=1
+			end
+			map_section_edge(v,d,switch,center, tile_name)
+		end
+		
+		
+	end
+	
+	def map_section_edge(v,d,switch,center, tile_name)
+		if switch
+			if over_ride_tile?(tile_name, @map[check_x(d)][check_y(v)][1])
+				@map[check_x(d)][check_y(v)][1] = rand_tile(tile_name)
+			end
+			if v < center
+				v-=1
+			else
+				v+=1
+			end
+			if over_ride_tile?(tile_name, @map[check_x(d)][check_y(v)][1])
+				@map[check_x(d)][check_y(v)][1] = rand_tile(tile_name)
+			end
+		else
+			if over_ride_tile?(tile_name, @map[check_x(v)][check_y(d)][1])
+				@map[check_x(v)][check_y(d)][1] = rand_tile(tile_name)
+			end
+			if v < center
+				v-=1
+			else
+				v+=1
+			end
+			if over_ride_tile?(tile_name, @map[check_x(v)][check_y(d)][1])
+				@map[check_x(v)][check_y(d)][1] = rand_tile(tile_name)
+			end
+		end
+	end
+	def increment(plus)
+		if plus
+			return 1
+		else
+			return -1
+		end
 	end
 	def find_width(x, y, x1, y1, x2, y2)
 		#width from center line
@@ -885,7 +869,7 @@ class MapGen
 		end
 	end
 	def speed(x,y)
-		return 0
+		return 1
 		if @map[x][y][0].name != "nil"
 			return @map[x][y][0].speed
 			

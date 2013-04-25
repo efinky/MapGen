@@ -11,8 +11,8 @@ class Character
 		@step = false
 		@filenames = []
 		#reads in all the files from a dirctory
-		Dir.glob("elf/*.png") do |filename|
-		#Dir.glob("halfling/*.png") do |filename|
+		#Dir.glob("elf/*.png") do |filename|
+		Dir.glob("halfling/*.png") do |filename|
 			@faces.store(filename, Gosu::Image.new(window, filename, true))
 			@filenames.push filename
 		end

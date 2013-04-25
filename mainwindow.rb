@@ -1,6 +1,5 @@
 require 'rubygems'
 require 'gosu'
-require './createmap'
 require './character'
 require './mapgen'
  
@@ -12,8 +11,8 @@ require './mapgen'
 #generate chunks of terrain... 
 #
 #
-$Width = 1024*3
-$Height = 768*3
+$Width = 1024#*2
+$Height = 768#*2
 #do everyone a favor... keep the map SQUARE!! :) Thanks!
 $MapRows = 500
 $MapCols = 500
